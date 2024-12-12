@@ -14,6 +14,7 @@ ENV PY_ABI_TAG=cp${PY_VER}-cp${PY_VER}
 RUN export PATH="/opt/python/${PY_ABI_TAG}/bin:$PATH" && \
     python3 -V && \
     libconnector=$(find . -type f -name "oss_*.cpython-${PY_VER}-x86_64-linux-gnu.so") && \
+    chmod +x ${libconnector} && \
     echo -e "[build_ext]\nlibrary_path=${libconnector}" > setup.cfg && \
     cat setup.cfg && \
     python3 -u setup.py bdist_wheel && \
