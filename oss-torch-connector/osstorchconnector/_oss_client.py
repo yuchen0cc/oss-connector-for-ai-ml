@@ -20,7 +20,17 @@ _oss_client.py
 """
 
 class OssClient:
-    def __init__(self, endpoint: str, cred_path: str = "", config_path: str = "", uuid: str = "", id: int = 0, total: int = 1, cred_provider: Any = None):
+    def __init__(
+        self,
+        endpoint: str,
+        cred_path: str = "",
+        config_path: str = "",
+        uuid: str = "",
+        id: int = 0,
+        total: int = 1,
+        cred_provider: Any = None,
+        region: str = "",
+    ):
         self._endpoint = endpoint
         self._cred_path = cred_path
         self._config_path = config_path
@@ -30,6 +40,7 @@ class OssClient:
         self._id = id
         self._total = total
         self._cred_provider = cred_provider
+        self._region = region
 
     _lock = threading.Lock()
     @property
@@ -47,7 +58,7 @@ class OssClient:
 
     def _client_builder(self) -> DataSet:
         log.info("OssClient new_oss_dataset, id %d, total %d", self._id, self._total)
-        return new_oss_dataset(self._endpoint, self._cred_path, self._cred_provider, self._config_path, str(self._uuid), self._id, self._total)
+        return new_oss_dataset(self._endpoint, self._cred_path, self._cred_provider, self._config_path, str(self._uuid), self._id, self._total, self._region)
 
     def get_object(self, bucket: str, key: str, size: int = 0, type: int = 0, label: str = "") -> DataObject:
         return self._client.open_ro(bucket, key, size, type, label)

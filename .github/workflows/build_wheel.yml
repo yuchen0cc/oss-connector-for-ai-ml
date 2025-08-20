@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -39,7 +39,7 @@ jobs:
         PYTHON_VERSION=${{ matrix.python }}
         PYTHON_VERSION=${PYTHON_VERSION//./}
         echo "PYTHON_VERSION=${PYTHON_VERSION}"
-        BUILD_IMAGE="quay.io/pypa/manylinux2014_x86_64:2024-03-10-4935fcc"
+        BUILD_IMAGE="quay.io/pypa/manylinux2014_x86_64:2025-07-14-b3bee7e"
         echo "BUILD_IMAGE=${BUILD_IMAGE}"
         RELEASE_IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/connector_builder:${PACKAGE_NAME}-${RELEASE_VERSION}"
         echo "RELEASE_IMAGE=${RELEASE_IMAGE}"

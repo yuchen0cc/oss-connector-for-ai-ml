@@ -30,12 +30,13 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
         from_tar: bool = False,
         shuffle: bool = False,
         shuffle_chunk_size: int = 1000,
+        region: str = "",
     ):
         self._uuid = uuid.uuid4()
         self._endpoint = endpoint
         log.info("OssIterableDataset init, uuid: %s, endpoint: %s", self._uuid, self._endpoint)
         if not endpoint:
-            raise ValueError("endpoint must be non-empty")
+            log.warning("endpoint is empty, load from local directory")
         if not cred_path:
             self._cred_path = ""
         else:
@@ -57,6 +58,7 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
             self.shuffle()
         else:
             self._bucket_objects = None
+        self._region = region
 
     @classmethod
     def from_objects(
@@ -68,6 +70,7 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
         cred_provider: Any = None,
         config_path: str = "",
         transform: Callable[[DataObject], Any] = identity,
+        region: str = "",
     ):
         """Returns an instance of OssIterableDataset using the OSS URI(s) provided.
 
@@ -78,6 +81,7 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
           config_path(str): Configuration file path of the OSS connector.
           transform: Optional callable which is used to transform an DataObject into the desired type.
           cred_provider: OSS credential provider.
+          region(str): OSS region. Region will be inferred from 'endpoint' if not set, but this may fail when the endpoint lacks region information.
 
         Returns:
             OssIterableDataset: An IterableStyle dataset created from OSS objects.
@@ -85,7 +89,7 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
         log.info(f"Building {cls.__name__} from_objects")
         return cls(
             endpoint, cred_path, config_path, partial(OssBucketIterable.from_uris, object_uris, preload=True),
-            transform=transform, cred_provider=cred_provider
+            transform=transform, cred_provider=cred_provider, region = region
         )
 
     @classmethod
@@ -98,6 +102,7 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
         cred_provider: Any = None,
         config_path: str = "",
         transform: Callable[[DataObject], Any] = identity,
+        region: str = "",
     ):
         """Returns an instance of OssIterableDataset using the OSS URI provided.
 
@@ -108,6 +113,7 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
           config_path(str): Configuration file path of the OSS connector.
           transform: Optional callable which is used to transform an DataObject into the desired type.
           cred_provider: OSS credential provider.
+          region(str): OSS region. Region will be inferred from 'endpoint' if not set, but this may fail when the endpoint lacks region information.
 
         Returns:
             OssIterableDataset: An IterableStyle dataset created from OSS objects.
@@ -115,7 +121,7 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
         log.info(f"Building {cls.__name__} from_prefix")
         return cls(
             endpoint, cred_path, config_path, partial(OssBucketIterable.from_prefix, oss_uri, preload=True),
-            transform=transform, cred_provider=cred_provider
+            transform=transform, cred_provider=cred_provider, region=region
         )
 
     @classmethod
@@ -130,6 +136,7 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
         cred_provider: Any = None,
         config_path: str = "",
         transform: Callable[[DataObject], Any] = identity,
+        region: str = "",
     ):
         """Returns an instance of OssIterableDataset using manifest file provided.
 
@@ -142,6 +149,7 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
           config_path(str): Configuration file path of the OSS connector.
           transform: Optional callable which is used to transform an DataObject into the desired type.
           cred_provider: OSS credential provider.
+          region(str): OSS region. Region will be inferred from 'endpoint' if not set, but this may fail when the endpoint lacks region information.
 
         Returns:
             OssIterableDataset: An IterableStyle dataset created from OSS objects.
@@ -149,7 +157,7 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
         log.info(f"Building {cls.__name__} from_manifest_file")
         return cls(
             endpoint, cred_path, config_path, partial(OssBucketIterable.from_manifest_file, manifest_file_path, manifest_parser, oss_base_uri, preload=True),
-            transform=transform, cred_provider=cred_provider
+            transform=transform, cred_provider=cred_provider, region=region
         )
 
     @classmethod
@@ -165,6 +173,7 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
         transform: Callable[[DataObject], Any] = identity,
         shuffle: bool = False,
         shuffle_chunk_size: int = 1000,
+        region: str = "",
     ):
         """Returns an instance of OssIterableDataset using tar file provided.
 
@@ -185,12 +194,13 @@ class OssIterableDataset(torch.utils.data.IterableDataset):
         log.info(f"Building {cls.__name__} from_tar")
         return cls(
             endpoint, cred_path, config_path, partial(OssTarIterable.from_tar, tar_uri, tar_index_uri, preload=True),
-            transform=transform, cred_provider=cred_provider, from_tar=True, shuffle=shuffle, shuffle_chunk_size=shuffle_chunk_size
+            transform=transform, cred_provider=cred_provider, from_tar=True, shuffle=shuffle, shuffle_chunk_size=shuffle_chunk_size,
+            region=region,
         )
 
     def _get_client(self, id, total):
         if self._client is None:
-            self._client = OssClient(self._endpoint, self._cred_path, self._config_path, self._uuid, id, total, cred_provider=self._cred_provider)
+            self._client = OssClient(self._endpoint, self._cred_path, self._config_path, self._uuid, id, total, cred_provider=self._cred_provider, region=self._region)
             log.info("OssIterableDataset new client")
         self._client._id = id
         self._client._total = total

@@ -14,7 +14,7 @@ def identity(obj: DataObject) -> DataObject:
 
 def parse_oss_uri(uri: str) -> Tuple[str, str]:
     if not uri or not (uri.startswith("oss://") or uri.startswith("/")):
-        raise ValueError("Only oss:// URIs are supported")
+        raise ValueError("uri should start with 'oss://' or '/'")
     if uri.startswith("oss://"):
         uri = uri[len("oss://"):]
     elif uri.startswith("/"):
@@ -79,8 +79,8 @@ class OssBucketIterable:
     def from_prefix(cls, oss_uri: str, client: OssClient, preload: bool = False):
         if not oss_uri:
             raise ValueError("oss_uri must be non-empty")
-        if not oss_uri.startswith("oss://"):
-            raise ValueError("only oss:// uri are supported")
+        if not (oss_uri.startswith("oss://") or oss_uri.startswith("/")):
+            raise ValueError("oss_uri should start with 'oss://' or '/'")
         return cls(client, oss_uri=oss_uri, preload=preload)
 
     @classmethod

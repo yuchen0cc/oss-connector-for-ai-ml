@@ -1,6 +1,7 @@
 from .oss_iterable_dataset import OssIterableDataset
 from .oss_map_dataset import OssMapDataset
 from .oss_checkpoint import OssCheckpoint
+from .oss_safetensor import OssSafetensor
 from .oss_filesystem import OssFileSystem, OssStorageReader, OssStorageWriter
 from ._oss_client import OssClient
 from ._oss_connector import new_data_object
@@ -11,6 +12,7 @@ __all__ = [
     "OssIterableDataset",
     "OssMapDataset",
     "OssCheckpoint",
+    "OssSafetensor"
     "OssFileSystem",
     "OssStorageReader",
     "OssStorageWriter",

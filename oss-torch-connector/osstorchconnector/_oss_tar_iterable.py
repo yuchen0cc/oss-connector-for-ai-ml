@@ -69,7 +69,7 @@ class OssTarObjectsIterator:
 
 def generate_tar_archive(endpoint: str, cred_path: str, config_path: str, tar_path: str,
                          index_path: str, source_path: str, index_only: bool = False,
-                         cred_provider: Any = None):
+                         cred_provider: Any = None, region: str = ""):
     """ Generate tar archive and its index.
 
         Args:
@@ -88,5 +88,5 @@ def generate_tar_archive(endpoint: str, cred_path: str, config_path: str, tar_pa
         raise ValueError("endpoint must be non-empty")
     if not cred_path and not cred_provider:
         raise ValueError("neither cred_path nor cred_provider is specified")
-    client = OssClient(endpoint, cred_path, config_path, cred_provider=cred_provider)
+    client = OssClient(endpoint, cred_path, config_path, cred_provider=cred_provider, region=region)
     return client.gen_tar_archive(tar_path, index_path, source_path, index_only)

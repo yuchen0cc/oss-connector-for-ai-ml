@@ -31,13 +31,14 @@ class OssMapDataset(torch.utils.data.Dataset):
         tar_uri: str = None,
         tar_index_uri: str = None,
         cred_provider: Any = None,
+        region: str = "",
     ):
         self._uuid = uuid.uuid4()
         self._endpoint = endpoint
         log.info("OssMapDataset init, uuid: %s, endpoint: %s", self._uuid, self._endpoint)
         init_time = time.time()
         if not endpoint:
-            raise ValueError("endpoint must be non-empty")
+            log.warning("endpoint is empty, load from local directory")
         if not cred_path:
             self._cred_path = ""
         else:
@@ -49,8 +50,9 @@ class OssMapDataset(torch.utils.data.Dataset):
             self._config_path = config_path
         self._get_dataset_objects = get_dataset_objects
         self._transform = transform
-        self._client = OssClient(self._endpoint, self._cred_path, self._config_path, self._uuid, cred_provider=self._cred_provider)
-        self._client_pid = os.getpid()
+        self._region = region
+        self._client = None
+        self._client_pid = None
         self._from_tar = False
         if tar_uri and tar_index_uri:
             tar_bucket, tar_key = parse_oss_uri(tar_uri)
@@ -61,9 +63,9 @@ class OssMapDataset(torch.utils.data.Dataset):
             self._tar_bucket = tar_bucket
             self._tar_key = tar_key
             self._tar_index_key = index_key
-            self._bucket_objects = self._get_dataset_objects(self._client)
+            self._bucket_objects = self._get_dataset_objects(self._get_client())
         else:
-            self._bucket_objects = list(self._get_dataset_objects(self._client))
+            self._bucket_objects = list(self._get_dataset_objects(self._get_client()))
         log.info("OssMapDataset init done, uuid: %s, time cost: %.2f s", self._uuid, time.time() - init_time)
 
 
@@ -84,6 +86,7 @@ class OssMapDataset(torch.utils.data.Dataset):
         cred_provider: Any = None,
         config_path: str = "",
         transform: Callable[[DataObject], Any] = identity,
+        region: str = "",
     ):
         """Returns an instance of OssMapDataset using the OSS URI(s) provided.
 
@@ -94,6 +97,7 @@ class OssMapDataset(torch.utils.data.Dataset):
           config_path(str): Configuration file path of the OSS connector.
           transform: Optional callable which is used to transform an DataObject into the desired type.
           cred_provider: OSS credential provider.
+          region(str): OSS region. Region will be inferred from 'endpoint' if not set, but this may fail when the endpoint lacks region information.
 
         Returns:
             OssMapDataset: A Map-Style dataset created from OSS objects.
@@ -101,7 +105,7 @@ class OssMapDataset(torch.utils.data.Dataset):
         log.info(f"Building {cls.__name__} from_objects")
         return cls(
             endpoint, cred_path, config_path, partial(OssBucketIterable.from_uris, object_uris, preload=False),
-            transform=transform, cred_provider=cred_provider
+            transform=transform, cred_provider=cred_provider, region=region
         )
 
     @classmethod
@@ -114,6 +118,7 @@ class OssMapDataset(torch.utils.data.Dataset):
         cred_provider: Any = None,
         config_path: str = "",
         transform: Callable[[DataObject], Any] = identity,
+        region: str = "",
     ):
         """Returns an instance of OssMapDataset using the OSS URI provided.
 
@@ -124,6 +129,7 @@ class OssMapDataset(torch.utils.data.Dataset):
           config_path(str): Configuration file path of the OSS connector.
           transform: Optional callable which is used to transform an DataObject into the desired type.
           cred_provider: OSS credential provider.
+          region(str): OSS region. Region will be inferred from 'endpoint' if not set, but this may fail when the endpoint lacks region information.
 
         Returns:
             OssMapDataset: A Map-Style dataset created from OSS objects.
@@ -131,7 +137,7 @@ class OssMapDataset(torch.utils.data.Dataset):
         log.info(f"Building {cls.__name__} from_prefix")
         return cls(
             endpoint, cred_path, config_path, partial(OssBucketIterable.from_prefix, oss_uri, preload=False),
-            transform=transform, cred_provider=cred_provider
+            transform=transform, cred_provider=cred_provider, region=region
         )
 
     @classmethod
@@ -146,6 +152,7 @@ class OssMapDataset(torch.utils.data.Dataset):
         cred_provider: Any = None,
         config_path: str = "",
         transform: Callable[[DataObject], Any] = identity,
+        region: str = "",
     ):
         """Returns an instance of OssMapDataset using manifest file provided.
 
@@ -158,6 +165,7 @@ class OssMapDataset(torch.utils.data.Dataset):
           config_path(str): Configuration file path of the OSS connector.
           transform: Optional callable which is used to transform an DataObject into the desired type.
           cred_provider: OSS credential provider.
+          region(str): OSS region. Region will be inferred from 'endpoint' if not set, but this may fail when the endpoint lacks region information.
 
         Returns:
             OssMapDataset: A Map-Style dataset created from OSS objects.
@@ -165,7 +173,7 @@ class OssMapDataset(torch.utils.data.Dataset):
         log.info(f"Building {cls.__name__} from_manifest_file")
         return cls(
             endpoint, cred_path, config_path, partial(OssBucketIterable.from_manifest_file, manifest_file_path, manifest_parser, oss_base_uri, preload=False),
-            transform=transform, cred_provider=cred_provider
+            transform=transform, cred_provider=cred_provider, region=region
         )
 
     @classmethod
@@ -179,6 +187,7 @@ class OssMapDataset(torch.utils.data.Dataset):
         cred_provider: Any = None,
         config_path: str = "",
         transform: Callable[[DataObject], Any] = identity,
+        region: str = "",
     ):
         """Returns an instance of OssMapDataset using tar file provided.
 
@@ -190,6 +199,7 @@ class OssMapDataset(torch.utils.data.Dataset):
           config_path(str): Configuration file path of the OSS connector.
           transform: Optional callable which is used to transform an DataObject into the desired type.
           cred_provider: OSS credential provider.
+          region(str): OSS region. Region will be inferred from 'endpoint' if not set, but this may fail when the endpoint lacks region information.
 
         Returns:
             OssMapDataset: An Map-Style dataset created from tar file.
@@ -197,14 +207,15 @@ class OssMapDataset(torch.utils.data.Dataset):
         log.info(f"Building {cls.__name__} from_tar")
         return cls(
             endpoint, cred_path, config_path, partial(OssTarIterable.from_tar, tar_uri, tar_index_uri, preload=False),
-            transform=transform, cred_provider=cred_provider, tar_uri=tar_uri, tar_index_uri=tar_index_uri
+            transform=transform, cred_provider=cred_provider, tar_uri=tar_uri, tar_index_uri=tar_index_uri, region=region
         )
 
     def _get_client(self):
         if self._client is None:
-            self._client = OssClient(self._endpoint, self._cred_path, self._config_path, self._uuid)
+            self._client = OssClient(self._endpoint, self._cred_path, self._config_path, self._uuid,
+                                     cred_provider=self._cred_provider, region=self._region)
             log.info("OssMapDataset new client")
-        if self._client_pid != os.getpid():
+        if self._client_pid is None or self._client_pid != os.getpid():
             worker_info = torch.utils.data.get_worker_info()
             if worker_info is not None:
                 # reset client id
